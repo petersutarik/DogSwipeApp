@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct SwipeableCardView: View {
     let dog: DogCard
@@ -6,6 +7,11 @@ struct SwipeableCardView: View {
 
     @State private var offset = CGSize.zero
     @State private var rotation: Double = 0
+    @State private var hasTriggeredThresholdHaptic = false
+
+    private let impactLight = UIImpactFeedbackGenerator(style: .light)
+    private let impactMedium = UIImpactFeedbackGenerator(style: .medium)
+    private let impactHeavy = UIImpactFeedbackGenerator(style: .heavy)
 
     var body: some View {
         ZStack {
@@ -57,11 +63,28 @@ struct SwipeableCardView: View {
                 .onChanged { gesture in
                     offset = gesture.translation
                     rotation = Double(gesture.translation.width / 20)
+
+                    // Trigger haptic when crossing threshold
+                    let swipeThreshold: CGFloat = 100
+                    if abs(gesture.translation.width) > swipeThreshold && !hasTriggeredThresholdHaptic {
+                        impactMedium.impactOccurred()
+                        hasTriggeredThresholdHaptic = true
+                    } else if abs(gesture.translation.width) <= swipeThreshold && hasTriggeredThresholdHaptic {
+                        hasTriggeredThresholdHaptic = false
+                    }
+
+                    // Light haptic for continuous feedback
+                    if abs(gesture.translation.width) > 20 {
+                        impactLight.impactOccurred(intensity: 0.3)
+                    }
                 }
                 .onEnded { gesture in
                     let swipeThreshold: CGFloat = 100
 
                     if abs(gesture.translation.width) > swipeThreshold {
+                        // Heavy haptic for successful swipe
+                        impactHeavy.impactOccurred()
+
                         // Swipe off screen
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             offset = CGSize(
@@ -75,12 +98,17 @@ struct SwipeableCardView: View {
                             onRemove()
                         }
                     } else {
+                        // Light haptic for snap back
+                        impactLight.impactOccurred()
+
                         // Return to center
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                             offset = .zero
                             rotation = 0
                         }
                     }
+
+                    hasTriggeredThresholdHaptic = false
                 }
         )
     }
